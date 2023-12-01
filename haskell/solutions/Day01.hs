@@ -9,10 +9,10 @@ solution :: Solution [[Maybe DigitEntry]] Int Int
 solution = Solution
   { decodeInput = many digitEntryP  `sepBy` space1
   , solveA = defSolver
-  { solve = Just . \ls -> sum [head l * 10 + last l | l <- mapMaybe (>>= realOnly) <$> ls]
+  { solve = Just . getSum . foldMap (Sum . firstLastVal . mapMaybe (realOnly =<<))
   }
   , solveB = defSolver
-  { solve = Just . \ls -> sum [head l * 10 + last l | l <- mapMaybe (fmap digitValue) <$> ls]
+  { solve = Just . getSum . foldMap (Sum . firstLastVal . mapMaybe (digitValue <$>))
   }
   , tests =
     [ "1abc2 pqr3stu8vwx a1b2c3d4e5f treb7uchet" :=> [(PartA, "142")]
@@ -51,6 +51,7 @@ firstLastVal :: [Int] -> Int
 firstLastVal [] = 0
 firstLastVal xs = 10 * head xs + last xs
 
+-- for debugging/inspecting
 reassemble :: [Maybe DigitEntry] -> String
 reassemble = concatMap showDE
   where
