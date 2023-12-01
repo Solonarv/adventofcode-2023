@@ -3,7 +3,7 @@ module ParsingPrelude
   , chainl, noeol, singleDigit, char2digitBase
   , module Text.Megaparsec
   , module Text.Megaparsec.Char
-  , module Text.Megaparsec.Char.Lexer
+  , module Text.Megaparsec.Char.Lexer, onecharify
 ) where
 
 import Control.Monad
@@ -46,3 +46,8 @@ char2digitBase (min 36 -> b) = fmap fromIntegral . guarding (< b) <=< \c -> guar
       , guard (within 'a' 'z' c) $> (o - ord 'a' + 10)
       , guard (within 'A' 'Z' c) $> (o - ord 'A' + 10)
       ]
+
+-- | transform a parser that (might) consume multiple tokens to consume only one token,
+-- using lookahead
+onecharify :: (MonadParsec e s m, Token s ~ Char) => m a -> m a
+onecharify p = lookAhead p <* takeP Nothing 1
