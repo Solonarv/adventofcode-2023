@@ -30,7 +30,7 @@ chainl el op = do
   pure (foldl' (\a (f, e) -> f a e) e1 pairs)
 
 noeol :: (MonadParsec e s m, Token s ~ Char) => m ()
-noeol = () <$ takeWhileP (Just "non-newline whitespace") (\c -> c /= '\n' && c /= '\r' && isSpace c)
+noeol = void (takeWhileP (Just "non-newline whitespace") (\c -> c /= '\n' && c /= '\r' && isSpace c))
 
 singleDigit :: (MonadParsec e s m, Token s ~ Char, Num a) => Int -> m a
 singleDigit (min 36 -> b) = token (char2digitBase b) expect
@@ -47,7 +47,7 @@ char2digitBase (min 36 -> b) = fmap fromIntegral . guarding (< b) <=< \c -> guar
       , guard (within 'A' 'Z' c) $> (o - ord 'A' + 10)
       ]
 
--- | transform a parser that (might) consume multiple tokens to consume only one token,
--- using lookahead
+-- | transform a parser that (might) consume multiple tokens
+-- to consume exactly one token if it succeeds, using @lookAhead@
 onecharify :: (MonadParsec e s m, Token s ~ Char) => m a -> m a
 onecharify p = lookAhead p <* takeP Nothing 1
