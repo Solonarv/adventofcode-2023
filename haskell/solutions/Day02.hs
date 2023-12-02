@@ -5,15 +5,15 @@ import AOC.Solution
 import ParsingPrelude
 import Util
 
+import Data.Semigroup
 import Linear.V3
 import Linear.Vector
-import Debug.Trace
 
-solution :: Solution [Game] Int Int
+solution :: Solution [Game] Int ()
 solution = Solution
   { decodeInput = gameP `sepBy1` eol
   , solveA = defSolver
-    { solve = Just . sum . traceShowId . fmap gameId . filter (isGamePossible (Reveal (V3 12 13 14)))
+    { solve = Just . sum .  fmap gameId . filter (isGamePossible (Reveal (V3 12 13 14)))
     }
   , solveB = defSolver
   , tests =
@@ -33,9 +33,9 @@ data Game = Game
   }
   deriving (Eq, Ord, Show)
 
-newtype Reveal = Reveal { revealRGB :: V3 Int }
+newtype Reveal = Reveal { revealRGB :: V3 Word }
   deriving (Eq, Ord, Show)
-  deriving (Semigroup, Monoid) via Sum (V3 Int)
+  deriving (Semigroup, Monoid) via (V3 (Max Word))
 
 data BallColor = BallR | BallG | BallB
   deriving (Eq, Ord, Show)
@@ -51,9 +51,9 @@ gameP = do
 revealP :: Parser Reveal
 revealP = foldMap Reveal <$> (revealEntryP `sepBy1` ", ")
   where
-    revealEntryP :: Parser (V3 Int)
+    revealEntryP :: Parser (V3 Word)
     revealEntryP = (*^) <$> decimal <*> (space *> colorP)
-    colorP :: Parser (V3 Int)
+    colorP :: Parser (V3 Word)
     colorP = asum
       [ V3 1 0 0 <$ "red"
       , V3 0 1 0 <$ "green"
