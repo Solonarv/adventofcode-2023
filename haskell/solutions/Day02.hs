@@ -9,13 +9,15 @@ import Data.Semigroup
 import Linear.V3
 import Linear.Vector
 
-solution :: Solution [Game] Int ()
+solution :: Solution [Game] Int Word
 solution = Solution
   { decodeInput = gameP `sepBy1` eol
   , solveA = defSolver
     { solve = Just . sum .  fmap gameId . filter (isGamePossible (Reveal (V3 12 13 14)))
     }
   , solveB = defSolver
+    { solve = Just . sum . fmap (cubePower . cubesNeeded)
+    }
   , tests =
     [ unlines
       [ "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green"
@@ -23,7 +25,7 @@ solution = Solution
       , "Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red"
       , "Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red"
       , "Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green"
-      ] :=> [(PartA, "8")]
+      ] :=> [(PartA, "8"), (PartB, "2286")]
     ]
   }
 
@@ -51,9 +53,7 @@ gameP = do
 revealP :: Parser Reveal
 revealP = foldMap Reveal <$> (revealEntryP `sepBy1` ", ")
   where
-    revealEntryP :: Parser (V3 Word)
     revealEntryP = (*^) <$> decimal <*> (space *> colorP)
-    colorP :: Parser (V3 Word)
     colorP = asum
       [ V3 1 0 0 <$ "red"
       , V3 0 1 0 <$ "green"
@@ -61,7 +61,13 @@ revealP = foldMap Reveal <$> (revealEntryP `sepBy1` ", ")
       ]
 
 isGamePossible :: Reveal -> Game -> Bool
-isGamePossible givens = isRevealUnder givens . fold . gameReveals
+isGamePossible givens = isRevealUnder givens . cubesNeeded
+
+cubesNeeded :: Game -> Reveal
+cubesNeeded = fold . gameReveals
 
 isRevealUnder :: Reveal -> Reveal -> Bool
 isRevealUnder (Reveal threshold) (Reveal x) = and (liftA2 (>=) threshold x)
+
+cubePower :: Reveal -> Word
+cubePower (Reveal xs) = product xs
