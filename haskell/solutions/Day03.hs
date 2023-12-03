@@ -15,13 +15,15 @@ import qualified Data.Set as Set
 import Control.Lens
 import Linear.V2
 
-solution :: Solution (Grid2D Entry) Word ()
+solution :: Solution (Grid2D Entry) Word Word
 solution = Solution
   { decodeInput = fromLines <$> inputLineP `sepBy1` eol
   , solveA = defSolver
     { solve = Just . getSum . foldMap (Sum . snd) . findPartNumbers
     }
   , solveB = defSolver
+    { solve = Just . getSum . foldMap (Sum . uncurry (*)) . findGears
+    }
   , tests =
     [ unlines
       [ "467..114.."
@@ -34,7 +36,7 @@ solution = Solution
       , "......755."
       , "...$.*...."
       , ".664.598.."
-      ] :=> [(PartA, "4361")]
+      ] :=> [(PartA, "4361"), (PartB, "467835")]
     ]
   }
 
@@ -68,6 +70,23 @@ findPartNumbers g = Set.fromList
     [ (V2 (x-o) y, n)
     | x <- [0 .. width g-1]
     , y <- [0 .. height g-1]
-    , Just (PartNumber n o) <- [g ^? gridPoint x y]
+    , PartNumber n o <- g ^.. gridPoint x y
     , any isPartId (adjacents x y g)
     ]
+
+partNumbersAround :: Int -> Int -> Grid2D Entry -> Set (V2 Int, Word)
+partNumbersAround x y g = Set.fromList
+  [ (V2 (x'-o) y', n)
+  | x' <- [x-1 .. x+1]
+  , y' <- [y-1 .. y+1]
+  , PartNumber n o <-  g ^.. gridPoint x' y'
+  ]
+
+findGears :: Grid2D Entry -> Set (Word, Word)
+findGears g = ifoldMap toGear g
+  where
+    toGear (x,y) e = case e of
+      PartId '*'
+        | [(_, a), (_, b)] <- Set.toList $ partNumbersAround x y g
+        -> Set.singleton (a,b)
+      _ -> Set.empty
