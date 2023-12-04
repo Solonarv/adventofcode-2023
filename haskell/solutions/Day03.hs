@@ -82,11 +82,11 @@ partNumbersAround x y g = Set.fromList
   , PartNumber n o <-  g ^.. gridPoint x' y'
   ]
 
-findGears :: Grid2D Entry -> Set (Word, Word)
+findGears :: Grid2D Entry -> [(Word, Word)]
 findGears g = ifoldMap toGear g
   where
     toGear (x,y) e = case e of
       PartId '*'
         | [(_, a), (_, b)] <- Set.toList $ partNumbersAround x y g
-        -> Set.singleton (a,b)
-      _ -> Set.empty
+        -> [(a,b)]
+      _ -> []
