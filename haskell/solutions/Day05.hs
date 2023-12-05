@@ -3,14 +3,14 @@ module Day05 where
 
 import AOC.Solution
 import ParsingPrelude
-import Util
+-- import Util
 
-import Data.Semigroup (Min(..))
-
-import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map.Lazy as Map
+import Data.Interval ((<=..<=), Extended(..))
+import Data.IntervalSet (IntervalSet)
+import qualified Data.IntervalSet as IntervalSet
+import qualified Data.Interval as Interval
 
 solution :: Solution ([Int], [MapSection]) Int Int
 solution = Solution
@@ -22,7 +22,7 @@ solution = Solution
             pure nums
       <*> mapSectionP `sepBy` eol
   , solveA = defSolver
-  { solve = uncurry lowestLocationNumber
+  { solve = uncurry (lowestLocationNumber . asPoints)
   }
   , solveB = defSolver
   { solve = uncurry (lowestLocationNumber . asPairs)
@@ -93,34 +93,42 @@ rangeP = do
   len <- decimal
   pure Range { rangeSourceStart = srcStart, rangeDestStart = destStart, rangeLength = len }
 
-rangesToMap :: [Range] -> Int -> Int
-rangesToMap [] x = x
-rangesToMap (r:rs) x = fromMaybe (rangesToMap rs x) (maybeApplyRange r x)
-
-maybeApplyRange :: Range -> Int -> Maybe Int
-maybeApplyRange r x
-  | x >= rangeSourceStart r
-  , x <= rangeSourceStart r + rangeLength r
-    = Just (x - rangeSourceStart r + rangeDestStart r)
-  | otherwise = Nothing
-
-seedCharacteristics :: Int -> [MapSection] -> Map String Int
-seedCharacteristics sn almanac = Map.fromList knot
+characteristics :: IntervalSet Int -> [MapSection] -> Map String (IntervalSet Int)
+characteristics seeds = go (Map.singleton "seed" seeds)
   where
-    knot = -- we hope that the maps in the input contain no forward references, else this will hang
-      ("seed", sn) :
-      [ (dest, val)
-      | MapSection src dest ranges <- almanac
-      , Just orig <- [Prelude.lookup src knot]
-      , let val = rangesToMap ranges orig
-      ]
+    go !acc [] = acc
+    go !acc (sec:secs) = go (applySec sec acc) secs
+    applySec (MapSection src dest ranges) acc = case Map.lookup src acc of
+      Nothing -> acc
+      Just prev -> Map.insert dest (translateRanges ranges prev) acc
 
-lowestLocationNumber :: [Int] -> [MapSection] -> Maybe Int
-lowestLocationNumber seeds almanac = getMin
-  <$> flip foldMap seeds \s ->
-      Min <$> Map.lookup "location" (seedCharacteristics s almanac)
+translateRanges :: [Range] -> IntervalSet Int -> IntervalSet Int
+translateRanges ranges orig = let
+    rangeIntervals = [(Finite s <=..<= Finite (s+l-1), d-s) | Range s d l <- ranges]
+    intervalsToRemove = [(IntervalSet.intersection orig (IntervalSet.singleton ri), d) | (ri, d) <- rangeIntervals]
+    intervalsToAdd = [shiftIntervalSet d i | (i, d) <- intervalsToRemove]
+    removals = IntervalSet.unions (fst <$> intervalsToRemove)
+    adds = IntervalSet.unions intervalsToAdd
+  in IntervalSet.union adds (IntervalSet.difference orig removals)
 
-asPairs :: [Int] -> [Int]
-asPairs (a:b:cs) = [a .. a+b-1] ++ asPairs cs
-asPairs [_] = error "bad input to asPairs"
-asPairs _ = []
+shiftIntervalSet :: Int -> IntervalSet Int -> IntervalSet Int
+shiftIntervalSet d = IntervalSet.fromAscList . fmap (Interval.mapMonotonic (+d)) . IntervalSet.toAscList
+
+lowestLocationNumber :: IntervalSet Int -> [MapSection] -> Maybe Int
+lowestLocationNumber seeds almanac = case Map.lookup "location" (characteristics seeds almanac) of
+  Nothing -> Nothing
+  Just locSet -> case IntervalSet.toAscList locSet of
+    [] -> Nothing
+    interval:_ -> case Interval.lowerBound interval of
+      Finite m -> Just m
+      _ -> Nothing
+
+asPairs :: [Int] -> IntervalSet Int
+asPairs = IntervalSet.fromList . go
+  where
+    go (a:b:cs) = (Finite a <=..<= Finite (a+b-1)) : go cs
+    go [_] = error "bad input to asPairs"
+    go _ = []
+
+asPoints :: [Int] -> IntervalSet Int
+asPoints = IntervalSet.fromList . fmap Interval.singleton

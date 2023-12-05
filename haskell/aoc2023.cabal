@@ -33,6 +33,7 @@ common deps
                      , monad-loops
                      , regex-applicative
                      , vector-algorithms
+                     , data-interval
 
 common lang
   default-language:    Haskell2010
